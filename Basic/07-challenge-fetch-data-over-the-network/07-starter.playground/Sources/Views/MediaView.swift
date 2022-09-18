@@ -34,58 +34,71 @@ import SwiftUI
 
 // MARK: Media View
 public struct MediaView: View {
-  // MARK: Media Error
-  public enum MediaError: Error {
-    case requestFailed
-    case responseDecodingFailed
-    case urlCreationFailed
-  }
-
-  // MARK: Properties
-  @State private var musicItems: [MusicItem] = []
-
-  // MARK: Body
-  public var body: some View {
-    VStack {
-      Button {
-        Task {
-          do {
-            try await fetchMusic()
-          } catch {
-            print(error)
-          }
+    // MARK: Media Error
+    public enum MediaError: Error {
+        case requestFailed
+        case responseDecodingFailed
+        case urlCreationFailed
+    }
+    
+    // MARK: Properties
+    @State private var musicItems: [MusicItem] = []
+    
+    // MARK: Body
+    public var body: some View {
+        VStack {
+            Button {
+                Task {
+                    do {
+                        try await fetchMusic()
+                    } catch {
+                        print(error)
+                    }
+                }
+            } label: {
+                Text("Fetch Music")
+            }
+            .padding(.top, 16.0)
+            
+            List(musicItems) { item in
+                Text(item.trackName)
+            }
+            
+            Spacer()
         }
-      } label: {
-        Text("Fetch Music")
-      }
-      .padding(.top, 16.0)
-
-      List(musicItems) { item in
-        Text(item.trackName)
-      }
-
-      Spacer()
+        .frame(width: 320.0, height: 400.0, alignment: .center)
     }
-    .frame(width: 320.0, height: 400.0, alignment: .center)
-  }
-
-  // MARK: - Initialization
-  public init() {
-
-  }
-
-  // MARK: Functions
-  func fetchMusic() async throws {
-    guard let url =  URL(string:"https://itunes.apple.com/search?media=music&entity=song&term=starlight") else {
-      throw MediaError.urlCreationFailed
+    
+    // MARK: - Initialization
+    public init() {
+        
     }
-
-    // TODO: Challenge - Download and decode your data here!
-
-    //        guard let response = try? JSONDecoder().decode(MediaResponse.self, from: data) else {
-    //            return
-    //        }
-  }
+    
+    // MARK: Functions
+    func fetchMusic() async throws {
+        guard let url =  URL(string:"https://itunes.apple.com/search?media=music&entity=song&term=starlight") else {
+            throw MediaError.urlCreationFailed
+        }
+        
+        let config = URLSessionConfiguration.default
+        let session = URLSession(configuration: config)
+        
+        Task {
+            let (data, response) = try await session.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
+                throw MediaError.requestFailed
+            }
+            
+            guard let mediaResponse = try? JSONDecoder().decode(MediaResponse.self, from: data) else {
+                throw MediaError.responseDecodingFailed
+            }
+            
+            await MainActor.run {
+                musicItems = mediaResponse.results
+            }
+        }
+    }
 }
 
 
