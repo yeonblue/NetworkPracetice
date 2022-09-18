@@ -33,7 +33,7 @@
 import Foundation
 
 // MARK: Playlist
-public class Playlist {
+public actor Playlist {
   // MARK: Properties
   public let title: String
   public let author: String
@@ -59,13 +59,13 @@ public class Playlist {
     songs.remove(at: index)
   }
 
-  public func move(song: String, from playlist: Playlist) {
-    playlist.remove(song: song)
+  public func move(song: String, from playlist: Playlist) async {
+    await playlist.remove(song: song)
     add(song: song)
   }
 
-  public func move(song: String, to playlist: Playlist) {
-    playlist.add(song: song)
+  public func move(song: String, to playlist: Playlist) async {
+    await playlist.add(song: song)
     remove(song: song)
   }
 }

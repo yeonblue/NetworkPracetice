@@ -38,3 +38,115 @@ func fetchDomains() async throws -> [Domain] {
   
   return try JSONDecoder().decode(Domains.self, from: data).data
 }
+
+func findTitle(url: URL) async throws -> String? {
+    for try await line in url.lines {
+        if line.contains("<title>") {
+            return line.trimmingCharacters(in: .whitespaces)
+        }
+    }
+    
+    return nil
+}
+
+Task {
+    if let title = try await findTitle(url: URL(string: "https://www.raywenderlich.com")!) {
+        print(title)
+    }
+}
+
+extension Domains {
+    static var domains: [Domain]{
+        // read only 값도 asynchronous 될 수 있음
+        get async throws {
+            try await fetchDomains()
+        }
+    }
+    
+    enum Error: Swift.Error { case outOfRange}
+    
+    static subscript (_ idx: Int) -> String {
+        get async throws {
+            let domains = try await Self.domains
+            
+            guard domains.indices.contains(idx) else {
+                throw Error.outOfRange
+            }
+            
+            return domains[idx].attributes.name
+        }
+    }
+}
+
+Task {
+    dump(try await Domains.domains)
+}
+
+Task {
+    dump(try await Domains[4])
+}
+
+// actor
+// class와 마찬가지로 reference type, 다만 thread safe, 은행 알고리즘 참고
+
+let favoriteList = Playlist(title: "favorite", author: "author", songs: ["song1"])
+let partyList = Playlist(title: "party", author: "party", songs: ["hello"])
+
+Task { // await를 통해 safe safe, concurrency safe 해짐, add하거나 단순히 call할 때는 await를 쓸 필요 없음
+    
+    await favoriteList.move(song: "hello", from: partyList)
+    await favoriteList.move(song: "song1", to: partyList)
+    
+    await print(favoriteList.songs)
+    await print(partyList.songs)
+}
+
+// main actor
+let url = URL(string: "https://api.raywenderlich.com/api/domains")!
+let session = URLSession.shared.dataTask(with: url) { data, _, _ in
+    guard let data = data,
+          let domain = try? JSONDecoder().decode(Domains.self, from: data).data.first else {
+              print("failed")
+              return
+          }
+    
+    Task {
+        await MainActor.run(body: {
+            print(domain)
+            print(Thread.isMainThread)
+        })
+    }
+    
+    // 위와 아래는 동일
+    Task { @MainActor in
+        
+    }
+}
+
+session.resume()
+
+extension Domains {
+    
+    // 항상 Main Thread 동작, 받을 때 await로 받아야 함
+    @MainActor func domainNames() -> [String] {
+        return data.map { $0.attributes.name }
+    }
+}
+
+URLSession.shared.dataTask(with: URL(string: "")!) { data, _, _ in
+    
+    guard let data = data,
+          let domain = try? JSONDecoder().decode(Domains.self, from: data) else {
+              print("failed")
+              return
+          }
+    
+    // 그냥 쓰면 아래와 같은 경고 발생
+    // Call to main actor-isolated instance method 'domainNames()' in a synchronous nonisolated context; this is an error in Swift 6
+    print(domain.domainNames())
+    
+    // 아래와 같이 써야 함
+    Task {
+        await print(domain.domainNames())
+    }
+}
