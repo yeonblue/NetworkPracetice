@@ -111,7 +111,16 @@ struct SongDetailView: View {
       return
     }
 
-    // TODO: Challenge - Download Images
+    do {
+      let data = try await downloader.downloadArtwork(at: artworkURL)
+      guard let image = UIImage(data: data) else {
+        return
+      }
+      
+      artworkImage = image
+    } catch {
+      
+    }
   }
 
   private func downloadTapped() async {

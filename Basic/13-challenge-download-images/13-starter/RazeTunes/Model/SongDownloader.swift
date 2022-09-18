@@ -61,8 +61,15 @@ class SongDownloader: ObservableObject {
 
   // MARK: Functions
   func downloadArtwork(at url: URL) async throws -> Data {
-    // TODO: Challenge - Download Images
-    throw ArtworkDownloadError.failedToDownloadArtwork
+    let (downloadURL, response) = try await session.download(from: url)
+    
+    guard let httpResponse = response as? HTTPURLResponse,
+      httpResponse.statusCode == 200
+    else {
+      throw ArtworkDownloadError.invalidResponse
+    }
+    
+    return try! Data(contentsOf: downloadURL)
   }
 
   func downloadSong(at url: URL) async throws {
