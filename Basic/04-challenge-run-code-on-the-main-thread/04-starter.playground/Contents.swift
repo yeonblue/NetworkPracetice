@@ -34,18 +34,37 @@ import SwiftUI
 
 // Challenge: Run Code On The Main Thread
 func printTitle(url: URL) async throws {
-  for try await line in url.lines {
-    if line.contains("<title>") {
-      print("Found the title. Are we on the main thread? \(Thread.isMainThread)")
-      print(line)
-      
-      return
+    for try await line in url.lines {
+        if line.contains("<title>") {
+            
+            await MainActor.run(body: {
+                print("Found the title. Are we on the main thread? \(Thread.isMainThread)")
+                print(line)
+            })
+            
+            return
+        }
     }
-  }
+}
+
+// 전체가 MainActor에서 동작, 만약 백그라운드에서 동작하고 UI 업데이트만 메인해서 하고자 한다면 MainActor.run이 적합
+// @MainActor 함수는 heavy한 동작이 들어가면 안됨
+@MainActor func printTitleWithAnnotation(url: URL) async throws {
+    for try await line in url.lines {
+        if line.contains("<title>") {
+            
+            await MainActor.run(body: {
+                print("Found the title. Are we on the main thread? \(Thread.isMainThread)")
+                print(line)
+            })
+            
+            return
+        }
+    }
 }
 
 Task {
-  print("Starting task. Are we on the main thread? \(Thread.isMainThread)")
-  
-  try await printTitle(url: URL(string: "https://www.raywenderlich.com")!)
+    print("Starting task. Are we on the main thread? \(Thread.isMainThread)")
+    
+    try await printTitle(url: URL(string: "https://www.raywenderlich.com")!)
 }
