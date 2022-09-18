@@ -31,3 +31,50 @@
 /// THE SOFTWARE.
 
 import SwiftUI
+
+// actor는 class와 마찬가지로 reference 타입, 단 한번에 한 개 일만 수행 가능.
+let task = Task {
+    print("First")
+    let sum = (1...100000).reduce(0, +)
+    
+    try Task.checkCancellation()
+    print(sum) // cancel이 없다면 Second가 표시되고 결과가 표시될 것임
+}
+
+print("Second: main thread/main actor")
+task.cancel() // cancel로 인해 1 ~ 100000은 호출이 되지 않음
+
+
+// 응용
+func performTask() async throws {
+    Task {
+        print("Start")
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        print("End")
+    }
+}
+
+Task {
+    try await performTask()
+}
+
+func fetchDomain() async throws -> [Domain] {
+    let url = URL(string: "https://api.raywenderlich.com/api/domains")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    
+    return try JSONDecoder().decode([Domain].self, from: data)
+}
+
+Task {
+    do {
+        let domains = try await fetchDomain()
+        
+        for (idx, domain) in domains.enumerated() {
+            let attr = domain.attributes
+            print("\(idx + 1), \(attr.name), \(attr.description), \(attr.level),")
+        }
+        
+    } catch let error {
+        print(error.localizedDescription)
+    }
+}
