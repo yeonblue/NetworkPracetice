@@ -41,6 +41,7 @@ struct SongDetailView: View {
 
   @MainActor @State private var isDownloading = false
   @MainActor @State private var playMusic = false
+  @MainActor @State private var isShowDownloadFailedAlert = false
 
   // MARK: Body
   var body: some View {
@@ -85,6 +86,9 @@ struct SongDetailView: View {
       }
     }
     .padding()
+    .alert("Download Failed", isPresented: isShowDownloadFailedAlert, actions: {
+      Button("Dismiss", role: .cancel, action: nil)
+    })
     .sheet(isPresented: $playMusic) {
       // swiftlint:disable:next force_unwrapping
       AudioPlayer(songUrl: downloader.downloadLocation!)
@@ -104,7 +108,12 @@ struct SongDetailView: View {
         return
       }
 
-      await downloader.downloadSong(at: previewURL)
+      do {
+        try await downloader.downloadSong(at: previewURL)
+      } catch {
+        isShowDownloadFailedAlert = true
+      }
+      
     } else {
       playMusic = true
     }
