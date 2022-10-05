@@ -111,4 +111,42 @@ class SongDownloader: ObservableObject {
       downloadLocation = destinationURL
     }
   }
+  
+  func downloadSongBytes(at url: URL, progress: Binding<Float>) async throws {
+    let (asyncBytes, response) = try await session.bytes(from: url)
+    let contentLength = Float(response.expectedContentLength)
+    var data = Data(capacity: Int(contentLength))
+    
+    for try await byte in asyncBytes {
+      data.append(byte)
+      
+      let currentProgress = Float(data.count) / Float(contentLength)
+      if Int(progress.wrappedValue * 100) != Int(currentProgress * 100) {
+        progress.wrappedValue = currentProgress
+      }
+    }
+    
+    let fileManager = FileManager.default
+    guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+      throw SongDownloadError.documentDirectoryError
+    }
+    
+    let lastPathComponent = url.lastPathComponent
+    let destinationURL = documentDirectory.appendingPathExtension(lastPathComponent)
+    
+    do {
+      if fileManager.fileExists(atPath: destinationURL.path) {
+        try fileManager.removeItem(at: destinationURL)
+      }
+      
+      try data.write(to: destinationURL)
+      
+      await MainActor.run {
+        downloadLocation = destinationURL
+      }
+      
+    } catch {
+      throw SongDownloadError.failedToStoreSong
+    }
+  }
 }

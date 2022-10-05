@@ -44,6 +44,7 @@ struct SongDetailView: View {
   @MainActor @State private var isDownloading = false
   @MainActor @State private var playMusic = false
   @MainActor @State private var showDownloadFailedAlert = false
+  @MainActor @State private var downloadProgress: Float = 0.0
 
   // MARK: Body
   var body: some View {
@@ -85,7 +86,7 @@ struct SongDetailView: View {
             .disabled(isDownloading)
 
             if isDownloading {
-              ProgressView()
+              ProgressView(value: downloadProgress)
             }
           }
 
@@ -137,7 +138,7 @@ struct SongDetailView: View {
       }
 
       do {
-        try await downloader.downloadSong(at: previewURL)
+        try await downloader.downloadSongBytes(at: previewURL, progress: $downloadProgress)
       } catch {
         print(error)
 
